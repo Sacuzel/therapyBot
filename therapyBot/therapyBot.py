@@ -36,3 +36,5 @@ app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, chat))
 
 # Run the bot
 app.run_polling()
+
+
