@@ -3,6 +3,9 @@ import os
 import pymupdf
 import pypdf
 import re
+import google.generativeai as genai
+from chromadb import Documents, EmbeddingFunction, Embeddings
+import os
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
@@ -50,6 +53,31 @@ def split_text(text: str):
     return [i for i in split_text if i != ""]
 
     chunked_text = split_text(text=pdf_text)
+
+class GeminiEmbeddingFunction(EmbeddingFunction):
+    """
+    Custom embedding function using the Gemini AI API for document retrieval.
+
+    This class extends the EmbeddingFunction class and implements the __call__ method
+    to generate embeddings for a given set of documents using the Gemini AI API.
+
+    Parameters:
+    - input (Documents): A collection of documents to be embedded.
+
+    Returns:
+    - Embeddings: Embeddings generated for the input documents.
+    """
+    def __call__(self, input: Documents) -> Embeddings:
+        gemini_api_key = os.getenv("GEMINI_API_KEY")
+        if not gemini_api_key:
+            raise ValueError("Gemini API Key not provided. Please provide GEMINI_API_KEY as an environment variable")
+        genai.configure(api_key=gemini_api_key)
+        model = "models/embedding-001"
+        title = "Custom query"
+        return genai.embed_content(model=model,
+                                   content=input,
+                                   task_type="retrieval_document",
+                                   title=title)["embedding"]
 
 def main():
     
