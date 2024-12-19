@@ -7,6 +7,6 @@ Local Document Database using ChromaDB for efficient information retrieval.
 Semantic Chunking with HuggingFace models to organize book data.
 Telegram Bot Interface for user interaction.
 
-Contact
 Created by Abdurrahman Faig.
+
 abdurrahman.faig@gmail.com
