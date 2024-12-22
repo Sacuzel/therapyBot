@@ -31,7 +31,7 @@ async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_message = update.message.text
     try:
         response_text = main(user_message)  # Use the RAG-based generation function
-        #response_text = generate_content(user_message)
+        print("\n###############################################################\n")
         await update.message.reply_text(response_text)
 
     except Exception as e:

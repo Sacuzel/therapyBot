@@ -183,7 +183,7 @@ def main(userQuery: str):
         """
     
     print("\nUsing an existing collection")
-    db=load_chroma_collection(path='/home/sacuzel/telegram_t_bot/therapyBot/databases_etc', name='depressionData')
+    db=load_chroma_collection(path='/home/sacuzel/sourceMaterial/bookData/therapyData', name='therapyData')
 
     print("GENERATING AN API CALL...")
     answer = generate_answer(db,query=userQuery)
