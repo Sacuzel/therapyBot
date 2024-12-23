@@ -139,7 +139,9 @@ def make_rag_prompt(query, relevant_passage):
 
     ANSWER:
     """).format(query=query, relevant_passage=escaped)
+
     print(f"\nTHE RELEVANT PASSAGE:\n {relevant_passage} \n")
+    
     return prompt
 
 def get_relevant_passage(query, db, n_results):

@@ -2,7 +2,6 @@ import google.generativeai as genai
 import os
 import pypdf
 import re
-import os
 
 # This swaps the stdlib sqlite3 with pysqlite3
 __import__('pysqlite3')
@@ -93,6 +92,25 @@ def create_chroma_db(documents:List, path:str, name:str):
 
     return db, name
 
+def check_db_exists(path, name):
+    """
+    Check if the Chroma collection already exists.
+
+    Parameters:
+    - path (str): The path where the Chroma database is stored.
+    - name (str): The name of the collection to check.
+
+    Returns:
+    - bool: True if the collection exists, False otherwise.
+    """
+    chroma_client = chr.PersistentClient(path=path)
+    try:
+        chroma_client.get_collection(name=name, embedding_function=GeminiEmbeddingFunction())
+        print("COLLECTION EXISTS!!!")
+        return True  # Collection exists
+    except Exception:
+        return False  # Collection does not exist
+
 def load_chroma_collection(path, name):
     """
     Loads an existing Chroma collection from the specified path with the given name.
@@ -110,23 +128,26 @@ def load_chroma_collection(path, name):
     return db
 
 def make_rag_prompt(query, relevant_passage):
-  escaped = relevant_passage.replace("'", "").replace('"', "").replace("\n", " ")
-  prompt = ("""You are a helpful and informative bot that answers questions using text from the reference passage included below. \
-  Be sure to respond in a complete sentence, being comprehensive, including all relevant background information. \
-  However, you are talking to a non-technical audience, so be sure to break down complicated concepts and \
-  strike a friendly and converstional tone. \
-  If the passage is irrelevant to the answer, you may ignore it.
-  QUESTION: '{query}'
-  PASSAGE: '{relevant_passage}'
+    escaped = relevant_passage.replace("'", "").replace('"', "").replace("\n", " ")
+    prompt = ("""You are a helpful and informative bot that answers questions using text from the reference passage included below. \
+                Be sure to respond in a complete sentence, being comprehensive, including all relevant background information. \
+                However, you are talking to a non-technical audience, so be sure to break down complicated concepts and \
+                strike a friendly and converstional tone. \
+                If the passage is irrelevant to the answer, you may ignore it.
+    QUESTION: '{query}'
+    PASSAGE: '{relevant_passage}'
+                
+    
 
-  ANSWER:
-  """).format(query=query, relevant_passage=escaped)
-
-  return prompt
+    ANSWER:
+    """).format(query=query, relevant_passage=escaped)
+    print(f"\nTHE RELEVANT PASSAGE:\n {relevant_passage} \n")
+    return prompt
 
 def get_relevant_passage(query, db, n_results):
   passage = db.query(query_texts=[query], n_results=n_results)['documents'][0]
   return passage
+  
 def generate_GEMINI_answer(prompt):
     gemini_api_key = os.getenv("GEMINI_API_KEY")
     if not gemini_api_key:
@@ -145,22 +166,32 @@ def generate_answer(db,query):
 
     return answer
 
-def main():
+def main(userQuery: str):
 
-    pdf_text = load_pdf(file_path='/home/sacuzel/sourceMaterial/Books/TheoryAndPractice')
+    if userQuery == None:
+        userQuery = "Tell me the exact reference passage you were given."
+
+    # Temporarily disabling this part
+    """
+    pdf_text = load_pdf(file_path='/home/sacuzel/sourceMaterial/depression.pdf')
     chunked_text = split_text(text=pdf_text)
-
-    db,name =create_chroma_db(documents=chunked_text, 
-                          path='/home/sacuzel/telegram_t_bot/therapyBot/databases_etc', #replace with your path
-                          name="rag_experiment")
-
-    db=load_chroma_collection(path='/home/sacuzel/telegram_t_bot/therapyBot/databases_etc', name='rag_experiment')
+    if not check_db_exists(path='/home/sacuzel/telegram_t_bot/therapyBot/databases_etc', name="depressionData"):
+        print("\nGenerating a new collection!")
+        db,name =create_chroma_db(documents=chunked_text, 
+                            path='/home/sacuzel/telegram_t_bot/therapyBot/databases_etc', #replace with your path
+                            name="depressionData")
+        """
+    
+    print("\nUsing an existing collection")
+    db=load_chroma_collection(path='/home/sacuzel/telegram_t_bot/therapyBot/databases_etc', name='depressionData')
 
     print("GENERATING AN API CALL...")
-    answer = generate_answer(db,query="How well does CBT help people?")
+    answer = generate_answer(db,query=userQuery)
     print(answer)
+
+    return answer
     
 if __name__=="__main__":
-    main()
+    main(userQuery=None)
 
 
