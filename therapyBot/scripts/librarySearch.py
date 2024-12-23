@@ -60,7 +60,7 @@ def librarySearch(prompt):
         embedding_function=embed_model  # Because it is langchain, we don't need to wrap the embedding model
     )
 
-    retriever = vectorstore.as_retriever(search_kwargs={"k": 20})  # K is the number of top results to be retrieved
+    retriever = vectorstore.as_retriever(search_kwargs={"k": 10})  # K is the number of top results to be retrieved
 
     # Test print the retriever contents
     # First we will get the documents in the retriever
@@ -70,9 +70,6 @@ def librarySearch(prompt):
     print("\nRetrieved Passages:\n")
     for i, doc in enumerate(retrieved_docs, start=1):
         print(f"Passage {i}:\n{doc.page_content}\n")
-
-
-
 
     # This is the user query template
     rag_template = """\
