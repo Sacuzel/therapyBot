@@ -136,8 +136,6 @@ def make_rag_prompt(query, relevant_passage):
                 If the passage is irrelevant to the answer, you may ignore it.
     QUESTION: '{query}'
     PASSAGE: '{relevant_passage}'
-                
-    
 
     ANSWER:
     """).format(query=query, relevant_passage=escaped)

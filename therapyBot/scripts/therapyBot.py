@@ -3,9 +3,9 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, fil
 import google.generativeai as genai
 import os
 
-from semantic_processor_demo import main
+from librarySearch import librarySearch
 
-API_KEY = os.environ.get("TELEGRAM_API_KEY")
+API_KEY = os.environ.get("GEMINI_API_KEY")
 TEL_TOKEN = os.environ.get("TELEGRAM_API_KEY")
 
 # Configure the generative model
@@ -15,7 +15,7 @@ model = genai.GenerativeModel('gemini-1.5-flash')
 async def generate_content(full_prompt: str) -> str:
     try:
         # Pass the user message to the RAG pipeline for processing
-        response = await main(full_prompt)
+        response = await librarySearch(full_prompt)
         #response = model.generate_content(full_prompt)
         return response.text if hasattr(response, 'text') else "Sorry, I couldn't generate a response."
     except Exception as e:
@@ -30,7 +30,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_message = update.message.text
     try:
-        response_text = main(user_message)  # Use the RAG-based generation function
+        response_text = librarySearch(user_message)  # Use the RAG-based generation function
         print("\n###############################################################\n")
         await update.message.reply_text(response_text)
 

@@ -35,15 +35,6 @@ class ChromaEmbeddingFunction:
     def __call__(self, input: List[str]) -> List[np.ndarray]:
         # For ChromaDB the input should be a list of strings and output a list of embeddings.
         return self.embedding_model.embed_documents(input)
-    
-#######################################################################################
-# Might want to use huggingface servers for larger books
-import chromadb.utils.embedding_functions as embedding_functions
-huggingface_ef = embedding_functions.HuggingFaceEmbeddingFunction(
-    api_key="YOUR_API_KEY",
-    model_name="BAAI/bge-base-en-v1.5"
-)
-#######################################################################################
 
 # Wrap the huggingface model so that chromaDB can use it
 chroma_embed_function = ChromaEmbeddingFunction(embed_model)
@@ -81,7 +72,7 @@ def semanticChunker(data):
     print("\nSemantic chunking in progress...")
 
     semantic_chunks = []
-    # Visualize the progress
+    # Visualize the chunking progress with a progress bar
     for i, content in enumerate(tqdm.tqdm([d.page_content for d in data], desc="Chunking Pages")):
         chunk = semantic_chunker.create_documents([content])
         semantic_chunks.extend(chunk)
