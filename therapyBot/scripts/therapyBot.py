@@ -28,10 +28,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     
 
 async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user_id = str(update.effective_user.id)  # Get the user id as a string
     user_message = update.message.text
     try:
-        response_text = librarySearch(user_message)  # Use the RAG-based generation function
-        print("\n###############################################################\n")
+        response_text = librarySearch(user_message, user_id)  # Use the RAG-based generation function
+        #print("\n###############################################################\n")
         await update.message.reply_text(response_text)
 
     except Exception as e:
