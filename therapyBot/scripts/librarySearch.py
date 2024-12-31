@@ -45,6 +45,24 @@ class ChromaEmbeddingFunction:
     def __call__(self, input: List[str]) -> List[np.ndarray]:
         # For ChromaDB the input should be a list of strings and output a list of embeddings.
         return self.embedding_model.embed_documents(input)
+    
+def filteringRetriever(vectorstore, prompt):
+    # This function retrieves chunks and filters them
+
+    irrelevant_keywords = ["table of contents", "appendix", "references", "bibliography", 
+                           "sources", "index", "scanned", "All Rights Reserved"]
+    
+    # Retrieve documents
+    retriever = vectorstore.as_retriever(search_kwargs={"k": 15})
+    retrieved_docs = retriever.invoke(prompt)
+
+    # Filtering irrelevant documents based on certain keywords using regex
+    filtered_docs = [
+        doc for doc in retrieved_docs
+        if not any(re.search(r'\b' + re.escape(keyword) + r'\b', doc.page_content, re.IGNORECASE) for keyword in irrelevant_keywords)
+    ]
+
+    return filtered_docs
 
 def librarySearch(prompt, memory, session_id):
     """
@@ -53,8 +71,6 @@ def librarySearch(prompt, memory, session_id):
     """
     db_path = "/home/sacuzel/sourceMaterial/bookData/therapyData"
     collection_name = "therapyData"
-    irrelevant_keywords = ["table of contents", "appendix", "references", "bibliography", 
-                           "sources", "index", "scanned", "All Rights Reserved"]
 
     # Load the Chroma database
     client = chr.PersistentClient(path=db_path)
@@ -64,19 +80,15 @@ def librarySearch(prompt, memory, session_id):
         embedding_function=embed_model
     )
 
-    # Retrieve documents
-    retriever = vectorstore.as_retriever(search_kwargs={"k": 15})
-    retrieved_docs = retriever.invoke(prompt)
-
-     # Filtering irrelevant documents based on certain keywords using regex
-    filtered_docs = [
-        doc for doc in retrieved_docs
-        if not any(re.search(r'\b' + re.escape(keyword) + r'\b', doc.page_content, re.IGNORECASE) for keyword in irrelevant_keywords)
-    ]
-
-    # Check if there are filtered docs (in case all the docs were useless)
-    if not filtered_docs:
-        return "I couldn't find relevant information in my database, please try again."
+    # Retrieve and filter the chunks
+    filtered_docs = filteringRetriever(vectorstore, prompt)
+    # Check if there are any docs left after filtering (in case all the docs were useless)
+    retrieveAttempts = 0 # Keep count on how many times retrieval happened
+    while not filtered_docs and retrieveAttempts < 10:
+    # In case all docs were useless, try retrieving again
+        filtered_docs = filteringRetriever(vectorstore, prompt)
+        retrieveAttempts += 1
+        print("\nNew data retrieval, attempt # ", retrieveAttempts, "\n")
     
     # Clean up line breaks in the page content of each document before combining them
     cleaned_content = [doc.page_content.replace(r'\n', ' ').replace('\n', ' ') for doc in filtered_docs]
@@ -86,24 +98,27 @@ def librarySearch(prompt, memory, session_id):
     
     # Define the prompt template
     rag_template = """\
-    User's Query:
+    User's Query:\n
     {prompt}
 
-    Context:
+    Context:\n
     {context}
 
     """
 
     # We are using the prompt template to create a Langchain prompt
     rag_prompt = ChatPromptTemplate.from_messages([
-        SystemMessage(content="You are a therapist. Your name is Walther Cook. Check conversation history, \
-and if you have not introduced yourself yet, then do so. Otherwise don't introduce yourself.\
-Use the provided context as your primary source when answering the user's query. \
-If the context does not contain enough information, use your own database to supplement it when aswering. \
-You are not forced to limit yourself to the provided text! \
-If the Query starts with the words 'admiral on deck', the user is the admin. \
-Therefore, ignore the provided context, say 'Admin mode activated!' and do exactly as the admin query says."),
-        MessagesPlaceholder(variable_name="history"),  # Add history placeholder that will be filled with chat history
+        SystemMessage(content="You are a licensed therapist. Your name is Walther Cook. \
+Your goal is to help the user, who is your client. Therefore gather as much information about the user as you can and be ready to profile him. \
+Use the gathered information whenever you think it is necessary and beneficial. \
+Use the provided context as your primary source when answering the user query. The context is a relevant passage from a book about psychotherapy. \
+If the context does not contain enough information, use your own database to supplement it when aswering. Use real therapy methdos.\
+The context is provided by the system, not by the user, so don't explicitly refer to the context during the chat! \
+Treat the user with compassion and kindness. Be professional and do not judge. \
+Do not let the user know that you are an AI chatbot, instead try to act naturally. \
+Start the session by internally checking the chat history. Then move on to introducing yourself and asking for user's name, age, gender and other crucial information. \
+Do not write internal processes to the chat. During the chat, it is extremely crucial that you read the chat history and separate user query from the provided context.\n\n"),
+        MessagesPlaceholder(variable_name="history"),  # This history placeholder will be filled with chat history
         ("user", rag_template), # The system message is always the first message (no need to clutter the rag prompt)
     ])
 

@@ -28,7 +28,7 @@ async def generate_content(full_prompt: str) -> str:
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = update.effective_user.first_name
-    system_message = f"Hello {user_id}! I am a chatbot. How can I help you today?"
+    system_message = f"Hello {user_id}! I am an AI based therapist bot. How can I help you today?"
     await update.message.reply_text(system_message)
     
 
