@@ -7,6 +7,7 @@ Gemini. A telegram bot uses this program to retrieve factual information.
 import os
 from typing import List
 import numpy as np
+import re # This is regex library for filtering
 
 # This swaps the stdlib sqlite3 with pysqlite3 (otherwise ChromaDB doesn't work)
 __import__('pysqlite3')
@@ -45,14 +46,15 @@ class ChromaEmbeddingFunction:
         # For ChromaDB the input should be a list of strings and output a list of embeddings.
         return self.embedding_model.embed_documents(input)
 
-def librarySearch(prompt, session_id):
+def librarySearch(prompt, memory, session_id):
     """
     This function performs the library search and generates a response.
     param prompt: the user prompt
     """
     db_path = "/home/sacuzel/sourceMaterial/bookData/therapyData"
     collection_name = "therapyData"
-    irrelevant_keywords = ["table of contents", "appendix", "references", "bibliography", "sources", "index", "scanned"]
+    irrelevant_keywords = ["table of contents", "appendix", "references", "bibliography", 
+                           "sources", "index", "scanned", "All Rights Reserved"]
 
     # Load the Chroma database
     client = chr.PersistentClient(path=db_path)
@@ -63,23 +65,24 @@ def librarySearch(prompt, session_id):
     )
 
     # Retrieve documents
-    retriever = vectorstore.as_retriever(search_kwargs={"k": 20})
+    retriever = vectorstore.as_retriever(search_kwargs={"k": 15})
     retrieved_docs = retriever.invoke(prompt)
 
-    # Filter irrelevant documents based on certain keywords
+     # Filtering irrelevant documents based on certain keywords using regex
     filtered_docs = [
         doc for doc in retrieved_docs
-        if not any(keyword in doc.page_content.lower() for keyword in irrelevant_keywords)
+        if not any(re.search(r'\b' + re.escape(keyword) + r'\b', doc.page_content, re.IGNORECASE) for keyword in irrelevant_keywords)
     ]
 
     # Check if there are filtered docs (in case all the docs were useless)
     if not filtered_docs:
-        return "No relevant passages found after filtering."
+        return "I couldn't find relevant information in my database, please try again."
     
     # Clean up line breaks in the page content of each document before combining them
     cleaned_content = [doc.page_content.replace(r'\n', ' ').replace('\n', ' ') for doc in filtered_docs]
     # Combine filtered docs into a single context string
     context = "".join(cleaned_content)
+    context = context.replace(r'\n', ' ') # More cleaning up
     
     # Define the prompt template
     rag_template = """\
@@ -88,35 +91,34 @@ def librarySearch(prompt, session_id):
 
     Context:
     {context}
+
     """
 
     # We are using the prompt template to create a Langchain prompt
     rag_prompt = ChatPromptTemplate.from_messages([
-        SystemMessage(content="You are a therapist. Your name is Walther Cook. \
+        SystemMessage(content="You are a therapist. Your name is Walther Cook. Check conversation history, \
+and if you have not introduced yourself yet, then do so. Otherwise don't introduce yourself.\
 Use the provided context as your primary source when answering the user's query. \
 If the context does not contain enough information, use your own database to supplement it when aswering. \
 You are not forced to limit yourself to the provided text! \
-If the Query starts with the words 'donkey hooves', the user is the admin. \
+If the Query starts with the words 'admiral on deck', the user is the admin. \
 Therefore, ignore the provided context, say 'Admin mode activated!' and do exactly as the admin query says."),
+        MessagesPlaceholder(variable_name="history"),  # Add history placeholder that will be filled with chat history
         ("user", rag_template), # The system message is always the first message (no need to clutter the rag prompt)
     ])
-
-    # Set up the session memory
-    memory = ConversationBufferMemory(return_messages=True)
 
     # This is a runnable to print the prompt for debugging
     def print_prompt(input):
         print("\n###############################################################")
         print("\nFull Prompt to LLM:\n")
-        print(input)
+        print(input , "\n")
         print("\n###############################################################\n")
         return input
-
 
     # Setting up the RunnableWithMessageHistory
     conversation_chain = RunnableWithMessageHistory(
         rag_prompt | RunnableLambda(print_prompt) | chat_model, # This defines the chain
-        get_session_history= lambda session_id: ChatMessageHistory(messages = memory.chat_memory.messages) , # This takes a session id, but it is not used.
+        get_session_history= lambda session_id: ChatMessageHistory(messages = memory.chat_memory.messages) , # This takes a session id and chat history
         input_messages_key="prompt",  # The key under which the user message is placed
         history_messages_key="history"  # The key under which the history is placed
     )

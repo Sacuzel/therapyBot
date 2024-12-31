@@ -2,6 +2,8 @@ from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 import google.generativeai as genai
 import os
+from typing import Dict
+from langchain.memory import ConversationBufferMemory
 
 from librarySearch import librarySearch
 
@@ -11,6 +13,9 @@ TEL_TOKEN = os.environ.get("TELEGRAM_API_KEY")
 # Configure the generative model
 genai.configure(api_key=API_KEY)
 model = genai.GenerativeModel('gemini-1.5-flash')
+
+# Dictionary that stores memory for each session
+memory_store: Dict[str, ConversationBufferMemory] = {}
 
 async def generate_content(full_prompt: str) -> str:
     try:
@@ -30,10 +35,23 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = str(update.effective_user.id)  # Get the user id as a string
     user_message = update.message.text
+
+    # Get or create memory for this session
+    if user_id not in memory_store:
+        memory_store[user_id] = ConversationBufferMemory(return_messages=True)
+    memory = memory_store[user_id]
+
     try:
-        response_text = librarySearch(user_message, user_id)  # Use the RAG-based generation function
-        #print("\n###############################################################\n")
+        # I am passing memory to the prompt (might not be smart if chat history grows, but works so far)
+        response_text = librarySearch(user_message, memory, user_id)  # Use the RAG-based generation function
+
+        # Add the prompt to the memory
+        memory.chat_memory.add_user_message(user_message)
+        memory.chat_memory.add_ai_message(response_text)
+
+        # We send the response message to the user
         await update.message.reply_text(response_text)
+
 
     except Exception as e:
         await update.message.reply_text(f"There was an error processing your request: {str(e)}")
